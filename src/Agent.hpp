@@ -69,9 +69,7 @@ private:
     mutable std::mutex nym_lock_;
     NymMap nym_connection_map_;
     const OTZMQListenCallback push_callback_;
-    const OTZMQListenCallback task_callback_;
     const OTZMQSubscribeSocket push_subscriber_;
-    const OTZMQSubscribeSocket task_subscriber_;
 
     static std::vector<std::string> backend_endpoint_generator();
     static std::vector<OTZMQReplySocket> create_backend_sockets(
@@ -89,17 +87,13 @@ private:
         const std::string& nymID,
         const std::string& task);
     OTZMQMessage backend_handler(const zmq::Message& message);
-    void check_task(
-        const Data& connectionID,
-        const std::string& taskID,
-        const std::string& nymID,
-        const int clientIndex);
     void internal_handler(zmq::Message& message);
     void increment_config_value(
         const std::string& section,
         const std::string& entry);
     OTZMQMessage instantiate_push(const Data& connectionID);
     void frontend_handler(zmq::Message& message);
+    void process_task_push(const zmq::Message& message);
     void push_handler(const zmq::Message& message);
     void save_config(const Lock& lock);
     void send_task_push(
@@ -107,7 +101,6 @@ private:
         const std::string& taskID,
         const std::string& nymID,
         const bool result);
-    void task_handler(const zmq::Message& message);
     void update_clients();
     void update_servers();
 

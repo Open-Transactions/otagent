@@ -437,7 +437,6 @@ int main(int argc, char** argv)
     };
     opentxs::OT::App().HandleSignals(&shutdowncallback);
     opentxs::OT::Join();
-    opentxs::LogNormal(OT_METHOD)(__FUNCTION__)(": Finished.").Flush();
     cleanup_globals();
 
     return 0;

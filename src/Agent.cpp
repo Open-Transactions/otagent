@@ -75,10 +75,7 @@ Agent::Agent(
     , nym_connection_map_()
     , push_callback_(zmq::ListenCallback::Factory(
           std::bind(&Agent::push_handler, this, std::placeholders::_1)))
-    , task_callback_(zmq::ListenCallback::Factory(
-          std::bind(&Agent::task_handler, this, std::placeholders::_1)))
     , push_subscriber_(zmq_.SubscribeSocket(push_callback_))
-    , task_subscriber_(zmq_.SubscribeSocket(task_callback_))
 {
     {
         Lock lock(config_lock_);
@@ -144,14 +141,7 @@ Agent::Agent(
 
     OT_ASSERT(0 <= clients_.load());
 
-    for (int i = 1; i <= clients_.load(); ++i) {
-        started = task_subscriber_->Start(
-            ot_.Client(i - 1).Endpoints().TaskComplete());
-
-        OT_ASSERT(started);
-
-        schedule_refresh(i - 1);
-    }
+    for (int i = 1; i <= clients_.load(); ++i) { schedule_refresh(i - 1); }
 
     started =
         push_subscriber_->Start(ot_.ZMQ().BuildEndpoint("rpc/push", -1, 1));
@@ -319,14 +309,6 @@ OTZMQMessage Agent::backend_handler(const zmq::Message& message)
         if (0 < response.task_size()) {
             const auto& taskID = response.task(0).id();
             associate_task(connectionID, taskNymID, taskID);
-            // It's possible for the task subscriber to miss a task
-            // complete message if the task finished quickly before
-            // we added the id to task_connection_map_
-            check_task(
-                connectionID,
-                taskID,
-                taskNymID,
-                session_to_client_index(command.session()));
         }
     }
 
@@ -336,37 +318,6 @@ OTZMQMessage Agent::backend_handler(const zmq::Message& message)
     replymessage->AddFrame(replydata);
 
     return replymessage;
-}
-
-void Agent::check_task(
-    const Data& connectionID,
-    const std::string& taskID,
-    const std::string& nymID,
-    const int index)
-{
-    const auto status =
-        ot_.Client(index).Sync().Status(Identifier::Factory(taskID));
-    bool result{false};
-
-    switch (status) {
-        case ThreadStatus::FINISHED_SUCCESS: {
-            result = true;
-        } break;
-        case ThreadStatus::FINISHED_FAILED: {
-            result = false;
-        } break;
-        case ThreadStatus::ERROR:
-        case ThreadStatus::RUNNING:
-        case ThreadStatus::SHUTDOWN:
-        default: {
-            return;
-        }
-    }
-
-    Lock lock(task_lock_);
-    task_connection_map_.erase(taskID);
-    lock.unlock();
-    send_task_push(connectionID, taskID, nymID, result);
 }
 
 std::vector<OTZMQReplySocket> Agent::create_backend_sockets(
@@ -449,8 +400,42 @@ void Agent::internal_handler(zmq::Message& message)
     frontend_->Send(message);
 }
 
+void Agent::process_task_push(const zmq::Message& message)
+{
+    const auto& payload = message.Body_at(0);
+    const auto data = Data::Factory(payload.data(), payload.size());
+    const auto push = proto::DataToProto<proto::RPCPush>(data);
+    const auto taskcomplete = push.taskcomplete();
+    const auto taskID = taskcomplete.id();
+    const auto success = taskcomplete.result();
+
+    Lock lock(task_lock_);
+    const auto it = task_connection_map_.find(taskID);
+
+    if (task_connection_map_.end() == it) {
+        LogDebug(OT_METHOD)(__FUNCTION__)(": We don't care about task ")(taskID)
+            .Flush();
+
+        return;
+    }
+
+    const OTData connectionID = it->second.first;
+    const std::string nymID = it->second.second;
+    task_connection_map_.erase(it);
+    lock.unlock();
+
+    OT_ASSERT(false == nymID.empty());
+
+    send_task_push(connectionID, taskID, nymID, success);
+}
+
 void Agent::push_handler(const zmq::Message& message)
 {
+    if (1 == message.Body().size()) {
+        process_task_push(message);
+        return;
+    }
+
     if (2 != message.Body().size()) {
         LogOutput(OT_METHOD)(__FUNCTION__)(": Invalid message").Flush();
 
@@ -497,10 +482,10 @@ void Agent::save_config(const Lock& lock)
 void Agent::schedule_refresh(const int instance) const
 {
     const auto& client = ot_.Client(instance);
-    client.Sync().Refresh();
+    client.OTX().Refresh();
     client.Schedule(
         std::chrono::seconds(30),
-        [=]() -> void { this->ot_.Client(instance).Sync().Refresh(); },
+        [=]() -> void { this->ot_.Client(instance).OTX().Refresh(); },
         (std::chrono::seconds(std::time(nullptr))));
 }
 
@@ -537,52 +522,11 @@ int Agent::session_to_client_index(const std::uint32_t session)
     return session / 2;
 }
 
-void Agent::task_handler(const zmq::Message& message)
-{
-    if (2 > message.Body().size()) {
-        LogOutput(OT_METHOD)(__FUNCTION__)(": Invalid message").Flush();
-
-        return;
-    }
-
-    LogOutput(OT_METHOD)(__FUNCTION__)(": Received notice for task ")(
-        std::string(message.Body_at(0)))
-        .Flush();
-    const std::string taskID{message.Body_at(0)};
-    const auto raw = Data::Factory(message.Body_at(1));
-    bool success{false};
-    OTPassword::safe_memcpy(
-        &success,
-        sizeof(success),
-        raw->data(),
-        static_cast<std::uint32_t>(raw->size()));
-    Lock lock(task_lock_);
-    const auto it = task_connection_map_.find(taskID);
-
-    if (task_connection_map_.end() == it) {
-        LogDebug(OT_METHOD)(__FUNCTION__)(": We don't care about task ")(
-            std::string(message.Body_at(0)))
-            .Flush();
-
-        return;
-    }
-
-    const OTData connectionID = it->second.first;
-    const std::string nymID = it->second.second;
-    task_connection_map_.erase(it);
-    lock.unlock();
-
-    OT_ASSERT(false == nymID.empty());
-
-    send_task_push(connectionID, taskID, nymID, success);
-}
-
 void Agent::update_clients()
 {
     increment_config_value(CONFIG_SECTION, CONFIG_CLIENTS);
     const auto newCount = ++clients_;
     const auto newIndex = static_cast<int>(newCount) - 1;
-    task_subscriber_->Start(ot_.Client(newIndex).Endpoints().TaskComplete());
     schedule_refresh(newIndex);
 }
 
