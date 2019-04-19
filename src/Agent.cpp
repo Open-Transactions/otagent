@@ -436,7 +436,7 @@ void Agent::push_handler(const zmq::Message& message)
         return;
     }
 
-    if (2 != message.Body().size()) {
+    if (3 != message.Body().size()) {
         LogOutput(OT_METHOD)(__FUNCTION__)(": Invalid message").Flush();
 
         return;
@@ -444,6 +444,7 @@ void Agent::push_handler(const zmq::Message& message)
 
     const std::string nymID{message.Body_at(0)};
     const auto& payload = message.Body_at(1);
+    const auto& instance = message.Body_at(2);
     auto connection = Data::Factory();
 
     try {
@@ -459,6 +460,7 @@ void Agent::push_handler(const zmq::Message& message)
 
     auto notification = instantiate_push(connection);
     notification->AddFrame(payload);
+    notification->AddFrame(instance);
     const auto sent = frontend_->Send(notification);
 
     if (sent) {
