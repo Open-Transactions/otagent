@@ -32,7 +32,10 @@ target_link_libraries(
   ${Boost_PROGRAM_OPTIONS_LIBRARIES}
 )
 
-set_property(TARGET ${MODULE_NAME} PROPERTY POSITION_INDEPENDENT_CODE 1)
+if(OT_WITH_QT)
+   target_link_libraries(${MODULE_NAME} PRIVATE ${Qt5Core_LIBRARIES} ${Qt5Qml_LIBRARIES})
+endif()
+
 set_property(TARGET ${MODULE_NAME} PROPERTY CXX_STANDARD 17)
 
 install(TARGETS ${MODULE_NAME} DESTINATION bin)

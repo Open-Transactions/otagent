@@ -31,8 +31,8 @@ endif()
 # Options for building
 
 option(BUILD_TESTS         "Build the unit tests." ON)
-
 option(BUILD_VERBOSE       "Verbose build output." ON)
+option(OT_WITH_QT          "opentxs was built with Qt support" OFF)
 
 set(PACKAGE_CONTACT        ""              CACHE <TYPE>  "Package Maintainer")
 set(PACKAGE_VENDOR         "Stash Crypto"  CACHE <TYPE>  "Package Vendor")
@@ -63,6 +63,7 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/bin)
 set(CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(PEDANTIC_CXX_FLAGS "-Werror")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -std=c11")
 
 if(${CMAKE_CXX_COMPILER_ID} MATCHES GNU)
@@ -107,6 +108,13 @@ find_package(Protobuf REQUIRED)
 find_package(opentxs-proto REQUIRED)
 find_package(opentxs REQUIRED)
 find_package(Boost REQUIRED program_options filesystem system)
+
+if(OT_WITH_QT)
+  find_package(Qt5 COMPONENTS Core Qml REQUIRED)
+  set_target_properties(Qt5::Core PROPERTIES MAP_IMPORTED_CONFIG_COVERAGE "RELEASE")
+  list(GET Qt5Core_INCLUDE_DIRS 0 QT_INCLUDE_DIR)
+  include_directories("${QT_INCLUDE_DIR}")
+endif()
 
 if(BUILD_TESTS)
   find_package(GTest REQUIRED)
