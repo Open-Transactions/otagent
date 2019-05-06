@@ -228,8 +228,8 @@ std::string find_home()
 
     if (home_directory.empty()) {
         opentxs::LogOutput(OT_METHOD)(__FUNCTION__)(
-                       ": Unable to determine the home directory.")
-                       .Flush();
+            ": Unable to determine the home directory.")
+            .Flush();
     }
 #endif
     return home_directory;
@@ -327,8 +327,8 @@ int main(int argc, char** argv)
         auto [generatedSecret, generatedPublic] =
             opentxs::network::zeromq::CurveClient::RandomKeypair();
 
-        OT_ASSERT(false == generatedSecret.empty());
-        OT_ASSERT(false == generatedPublic.empty());
+        OT_ASSERT(false == generatedSecret.empty())
+        OT_ASSERT(false == generatedPublic.empty())
 
         server_private_key = generatedSecret;
         server_public_key = generatedPublic;
@@ -351,8 +351,8 @@ int main(int argc, char** argv)
         auto [generatedSecret, generatedPublic] =
             opentxs::network::zeromq::CurveClient::RandomKeypair();
 
-        OT_ASSERT(false == generatedSecret.empty());
-        OT_ASSERT(false == generatedPublic.empty());
+        OT_ASSERT(false == generatedSecret.empty())
+        OT_ASSERT(false == generatedPublic.empty())
 
         client_private_key = generatedSecret;
         client_public_key = generatedPublic;

@@ -103,50 +103,50 @@ Agent::Agent(
         ot_.StartClient(ArgList(), i);
     }
 
-    OT_ASSERT(0 < backend_endpoints_.size());
+    OT_ASSERT(0 < backend_endpoints_.size())
 
     auto started{false};
 
     for (const auto& endpoint : backend_endpoints_) {
         started = internal_->Start(endpoint);
 
-        OT_ASSERT(started);
+        OT_ASSERT(started)
     }
 
-    OT_ASSERT(false == socket_path_.empty());
+    OT_ASSERT(false == socket_path_.empty())
 
     const auto zap = ot_.ZAP().RegisterDomain(
         ZAP_DOMAIN,
         std::bind(&Agent::zap_handler, this, std::placeholders::_1));
 
-    OT_ASSERT(zap);
+    OT_ASSERT(zap)
 
     const auto domain = frontend_->SetDomain(ZAP_DOMAIN);
 
-    OT_ASSERT(domain);
+    OT_ASSERT(domain)
 
     const bool set = frontend_->SetPrivateKey(server_privkey_);
 
-    OT_ASSERT(set);
+    OT_ASSERT(set)
 
     started = frontend_->Start(socket_path_);
 
-    OT_ASSERT(started);
+    OT_ASSERT(started)
 
     for (const auto& endpoint : frontend_endpoints_) {
         started = frontend_->Start(endpoint);
 
-        OT_ASSERT(started);
+        OT_ASSERT(started)
     }
 
-    OT_ASSERT(0 <= clients_.load());
+    OT_ASSERT(0 <= clients_.load())
 
     for (int i = 1; i <= clients_.load(); ++i) { schedule_refresh(i - 1); }
 
     started =
         push_subscriber_->Start(ot_.ZMQ().BuildEndpoint("rpc/push", -1, 1));
 
-    OT_ASSERT(started);
+    OT_ASSERT(started)
 }
 
 void Agent::associate_nym(const Data& connection, const std::string& nymID)
@@ -170,9 +170,9 @@ void Agent::associate_task(
     const std::string& nymID,
     const std::string& task)
 {
-    OT_ASSERT(false == connection.empty());
-    OT_ASSERT(false == nymID.empty());
-    OT_ASSERT(false == task.empty());
+    OT_ASSERT(false == connection.empty())
+    OT_ASSERT(false == nymID.empty())
+    OT_ASSERT(false == task.empty())
 
     LogOutput(OT_METHOD)(__FUNCTION__)(": Connection ")(connection.asHex())(
         " is waiting for task ")(task)
@@ -201,7 +201,7 @@ std::vector<std::string> Agent::backend_endpoint_generator()
 
 OTZMQMessage Agent::backend_handler(const zmq::Message& message)
 {
-    OT_ASSERT(1 < message.Body().size());
+    OT_ASSERT(1 < message.Body().size())
 
     const auto& request = message.Body().at(0);
     const auto data = Data::Factory(request.data(), request.size());
@@ -334,7 +334,7 @@ std::vector<OTZMQReplySocket> Agent::create_backend_sockets(
         auto& socket = *output.rbegin();
         started = socket->Start(endpoint);
 
-        OT_ASSERT(started);
+        OT_ASSERT(started)
 
         LogNormal(endpoint).Flush();
     }
@@ -346,7 +346,7 @@ void Agent::frontend_handler(zmq::Message& message)
 {
     const auto size = message.Header().size();
 
-    OT_ASSERT(0 < size);
+    OT_ASSERT(0 < size)
 
     if (0 == message.Body().size()) {
         LogOutput(OT_METHOD)(__FUNCTION__)(": Empty command.").Flush();
@@ -357,7 +357,7 @@ void Agent::frontend_handler(zmq::Message& message)
     // Append connection identity for push notification purposes
     const auto& identity = message.Header_at(size - 1);
 
-    OT_ASSERT(0 < identity.size());
+    OT_ASSERT(0 < identity.size())
 
     LogVerbose(OT_METHOD)(__FUNCTION__)(": ConnectionID: ")(
         Data::Factory(identity)->asHex())
@@ -381,15 +381,15 @@ void Agent::increment_config_value(
 
 OTZMQMessage Agent::instantiate_push(const Data& connectionID)
 {
-    OT_ASSERT(0 < connectionID.size());
+    OT_ASSERT(0 < connectionID.size())
 
     auto output = zmq::Message::Factory();
     output->AddFrame(connectionID);
     output->AddFrame();
     output->AddFrame("PUSH");
 
-    OT_ASSERT(1 == output->Header().size());
-    OT_ASSERT(1 == output->Body().size());
+    OT_ASSERT(1 == output->Header().size())
+    OT_ASSERT(1 == output->Body().size())
 
     return output;
 }
@@ -424,7 +424,7 @@ void Agent::process_task_push(const zmq::Message& message)
     task_connection_map_.erase(it);
     lock.unlock();
 
-    OT_ASSERT(false == nymID.empty());
+    OT_ASSERT(false == nymID.empty())
 
     send_task_push(connectionID, taskID, nymID, success);
 }
@@ -497,9 +497,9 @@ void Agent::send_task_push(
     const std::string& nymID,
     const bool result)
 {
-    OT_ASSERT(false == connectionID.empty());
-    OT_ASSERT(false == taskID.empty());
-    OT_ASSERT(false == nymID.empty());
+    OT_ASSERT(false == connectionID.empty())
+    OT_ASSERT(false == taskID.empty())
+    OT_ASSERT(false == nymID.empty())
 
     auto push = instantiate_push(connectionID);
     proto::RPCPush message{};
@@ -511,7 +511,7 @@ void Agent::send_task_push(
     task.set_id(taskID);
     task.set_result(result);
 
-    OT_ASSERT(proto::Validate(message, VERBOSE));
+    OT_ASSERT(proto::Validate(message, VERBOSE))
 
     push->AddFrame(proto::ProtoAsData(message));
     frontend_->Send(push);
@@ -519,7 +519,7 @@ void Agent::send_task_push(
 
 int Agent::session_to_client_index(const std::uint32_t session)
 {
-    OT_ASSERT(0 == session % 2);
+    OT_ASSERT(0 == session % 2)
 
     return session / 2;
 }
