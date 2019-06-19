@@ -31,7 +31,7 @@ namespace fs = boost::filesystem;
 namespace opentxs::agent
 {
 Agent::Agent(
-    const api::Native& app,
+    const api::Context& app,
     const std::int64_t clients,
     const std::int64_t servers,
     const std::string& socket_path,

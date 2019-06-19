@@ -22,7 +22,7 @@ class Agent
 {
 public:
     Agent(
-        const api::Native& app,
+        const api::Context& app,
         const std::int64_t clients,
         const std::int64_t servers,
         const std::string& socket_path,
@@ -44,7 +44,7 @@ private:
     // nym id, connection id
     using NymMap = std::map<std::string, OTData>;
 
-    const api::Native& ot_;
+    const api::Context& ot_;
     const zmq::Context& zmq_;
     std::atomic<std::int64_t> clients_;
     const OTZMQListenCallback internal_callback_;

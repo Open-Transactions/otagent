@@ -10,12 +10,9 @@
 void OTTestEnvironment::SetUp()
 {
     opentxs::ArgList args{{OPENTXS_ARG_STORAGE_PLUGIN, {"mem"}}};
-    opentxs::OT::Start(args);
+    opentxs::InitContext(args);
 }
 
-void OTTestEnvironment::TearDown() { opentxs::OT::Cleanup(); }
+void OTTestEnvironment::TearDown() { opentxs::Cleanup(); }
 
-OTTestEnvironment::~OTTestEnvironment()
-{
-    // TODO Auto-generated destructor stub
-}
+OTTestEnvironment::~OTTestEnvironment() = default;
