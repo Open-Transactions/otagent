@@ -250,7 +250,7 @@ int main(int argc, char** argv)
     }
 
     const auto& ot =
-        opentxs::OT::Start(args, std::chrono::seconds(OT_STORAGE_GC_SECONDS));
+        opentxs::InitContext(args, std::chrono::seconds(OT_STORAGE_GC_SECONDS));
 
     // Use the max of the values from the command line and the config file.
     std::int64_t clients = max_option_value(OPTION_CLIENTS);
@@ -435,8 +435,8 @@ int main(int argc, char** argv)
             .Flush();
         otagent.reset();
     };
-    opentxs::OT::App().HandleSignals(&shutdowncallback);
-    opentxs::OT::Join();
+    opentxs::Context().HandleSignals(&shutdowncallback);
+    opentxs::Join();
     cleanup_globals();
 
     return 0;
