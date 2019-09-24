@@ -34,8 +34,6 @@ extern "C" {
 #define CONFIG_CLIENT_PRIVKEY "client_privkey"
 #define CONFIG_CLIENT_PUBKEY "client_pubkey"
 
-#define OT_METHOD "opentxs::"
-
 namespace po = boost::program_options;
 namespace pt = boost::property_tree;
 namespace fs = boost::filesystem;
@@ -211,7 +209,7 @@ std::string find_home()
 {
     std::string home_directory;
 #ifdef __APPLE__
-    home_directory = opentxs::OTPaths::AppDataFolder().Get();
+    home_directory = ot::OTPaths::AppDataFolder().Get();
 #else
     std::string environment;
     const char* env = getenv("HOME");
@@ -227,30 +225,30 @@ std::string find_home()
     }
 
     if (home_directory.empty()) {
-        opentxs::LogOutput(OT_METHOD)(__FUNCTION__)(
-            ": Unable to determine the home directory.")
+        ot::LogOutput(__FUNCTION__)(": Unable to determine the home directory.")
             .Flush();
     }
 #endif
+
     return home_directory;
 }
 
 int main(int argc, char** argv)
 {
-    opentxs::Signals::Block();
+    ot::Signals::Block();
     auto settings_path = find_home() + "/.otagent";
     read_config_options(settings_path);
     read_options(argc, argv);
     auto opts = variables();
 
-    opentxs::ArgList args;
+    ot::ArgList args;
     if (!variables()[OPTION_LOG_ENDPOINT].empty()) {
         args[OPTION_LOG_ENDPOINT].emplace(
             variables()[OPTION_LOG_ENDPOINT].as<std::string>());
     }
 
     const auto& ot =
-        opentxs::InitContext(args, std::chrono::seconds(OT_STORAGE_GC_SECONDS));
+        ot::InitContext(args, std::chrono::seconds(OT_STORAGE_GC_SECONDS));
 
     // Use the max of the values from the command line and the config file.
     std::int64_t clients = max_option_value(OPTION_CLIENTS);
@@ -325,7 +323,7 @@ int main(int argc, char** argv)
     if (needServerKeys) {
         std::cout << "Generating new server keypair." << std::endl;
         auto [generatedSecret, generatedPublic] =
-            opentxs::network::zeromq::CurveClient::RandomKeypair();
+            ot::network::zeromq::curve::Client::RandomKeypair();
 
         OT_ASSERT(false == generatedSecret.empty())
         OT_ASSERT(false == generatedPublic.empty())
@@ -349,7 +347,7 @@ int main(int argc, char** argv)
     if (needClientKeys) {
         std::cout << "Generating new client keypair." << std::endl;
         auto [generatedSecret, generatedPublic] =
-            opentxs::network::zeromq::CurveClient::RandomKeypair();
+            ot::network::zeromq::curve::Client::RandomKeypair();
 
         OT_ASSERT(false == generatedSecret.empty())
         OT_ASSERT(false == generatedPublic.empty())
@@ -417,8 +415,8 @@ int main(int argc, char** argv)
     fs::fstream settingsfile(settings_path, std::ios::out);
     pt::write_ini(settingsfile, root);
     settingsfile.close();
-    std::unique_ptr<opentxs::agent::Agent> otagent;
-    otagent.reset(new opentxs::agent::Agent(
+    std::unique_ptr<ot::agent::Agent> otagent;
+    otagent.reset(new ot::agent::Agent(
         ot,
         clients,
         servers,
@@ -431,12 +429,11 @@ int main(int argc, char** argv)
         settings_path,
         root));
     std::function<void()> shutdowncallback = [&otagent]() -> void {
-        opentxs::LogNormal(OT_METHOD)(__FUNCTION__)(": Shutting down...")
-            .Flush();
+        ot::LogNormal(__FUNCTION__)(": Shutting down...").Flush();
         otagent.reset();
     };
-    opentxs::Context().HandleSignals(&shutdowncallback);
-    opentxs::Join();
+    ot::Context().HandleSignals(&shutdowncallback);
+    ot::Join();
     cleanup_globals();
 
     return 0;
