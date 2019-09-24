@@ -1,45 +1,37 @@
-#[[
-// clang-format off
-]]#
-# Copyright (c) 2018 The Open-Transactions developers
+# Copyright (c) 2019 The Open-Transactions developers
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-set(MODULE_NAME otagent)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 file(GLOB cxx-sources "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 file(GLOB cxx-headers "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 
-add_executable(${MODULE_NAME}
-  ${cxx-sources}
-  ${cxx-headers})
+add_executable(otagent ${cxx-sources} ${cxx-headers})
 
 target_link_libraries(
-  ${MODULE_NAME}
+  otagent
   PRIVATE
-  Threads::Threads
-  ${APP_SYSTEM_LIBRARIES}
-  ${PROTOBUF_LITE_LIBRARIES}
-  ${OPENTXS_PROTO_LIBRARIES}
-  ${OPENTXS_LIBRARIES}
-  ${Boost_SYSTEM_LIBRARIES}
-  ${Boost_FILESYSTEM_LIBRARIES}
-  ${Boost_PROGRAM_OPTIONS_LIBRARIES}
+    Threads::Threads
+    opentxs
+    Boost::system
+    Boost::filesystem
+    Boost::program_options
+    ${ZMQ_LIBRARIES}
 )
 
-if(OT_WITH_QT)
-   target_link_libraries(${MODULE_NAME} PRIVATE ${Qt5Core_LIBRARIES} ${Qt5Qml_LIBRARIES})
+if(CMAKE_DL_LIBS)
+  target_link_libraries(otagent PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
-set_property(TARGET ${MODULE_NAME} PROPERTY CXX_STANDARD 17)
+if(LIB_RT)
+  target_link_libraries(otagent PRIVATE ${LIB_RT})
+endif()
 
-install(TARGETS ${MODULE_NAME} DESTINATION bin)
+target_include_directories(
+  otagent SYSTEM
+  PRIVATE ${opentxs_INCLUDE_DIRS} ${ZMQ_INCLUDE_DIRS}
+)
 
-#[[
-// clang-format on
-]]#
+install(TARGETS otagent DESTINATION bin)

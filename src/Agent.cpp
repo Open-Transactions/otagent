@@ -21,12 +21,9 @@
 #define CONFIG_CLIENT_PUBKEY "client_pubkey"
 #define RPCPUSH_VERSION 2
 #define TASKCOMPLETE_VERSION 1
-
-namespace fs = boost::filesystem;
-
 #define ZAP_DOMAIN "otagent"
 
-#define OT_METHOD "opentxs::Agent::"
+#define OT_METHOD "opentxs::agent::Agent::"
 
 namespace opentxs::agent
 {
@@ -49,7 +46,7 @@ Agent::Agent(
           std::bind(&Agent::internal_handler, this, std::placeholders::_1)))
     , internal_(zmq_.DealerSocket(
           internal_callback_,
-          zmq::Socket::Direction::Connect))
+          zmq::socket::Socket::Direction::Connect))
     , backend_endpoints_(backend_endpoint_generator())
     , backend_callback_(zmq::ReplyCallback::Factory(
           std::bind(&Agent::backend_handler, this, std::placeholders::_1)))
@@ -58,8 +55,9 @@ Agent::Agent(
     , frontend_endpoints_(endpoints)
     , frontend_callback_(zmq::ListenCallback::Factory(
           std::bind(&Agent::frontend_handler, this, std::placeholders::_1)))
-    , frontend_(
-          zmq_.RouterSocket(frontend_callback_, zmq::Socket::Direction::Bind))
+    , frontend_(zmq_.RouterSocket(
+          frontend_callback_,
+          zmq::socket::Socket::Direction::Bind))
     , servers_(servers)
     , settings_path_(settings_path)
     , socket_path_(socket_path)
@@ -204,13 +202,13 @@ OTZMQMessage Agent::backend_handler(const zmq::Message& message)
     OT_ASSERT(1 < message.Body().size())
 
     const auto& request = message.Body().at(0);
-    const auto data = Data::Factory(request.data(), request.size());
-    const auto command =
-        opentxs::proto::DataToProto<opentxs::proto::RPCCommand>(data);
+    const auto command = ot::proto::Factory<ot::proto::RPCCommand>(request);
     const auto connectionID = Data::Factory(message.Body().at(1));
+
     for (auto nym : command.associatenym()) {
         associate_nym(connectionID, nym);
     }
+
     auto response = ot_.RPC(command);
     std::string taskNymID{};
 
@@ -244,7 +242,9 @@ OTZMQMessage Agent::backend_handler(const zmq::Message& message)
                 const auto accountID =
                     Identifier::Factory(command.sendpayment().sourceaccount());
                 taskNymID =
-                    ot_.Client(session_to_client_index(command.session()))
+                    ot_
+                        .Client(session_to_client_index(
+                            static_cast<std::uint32_t>(command.session())))
                         .Storage()
                         .AccountOwner(accountID)
                         ->str();
@@ -256,7 +256,9 @@ OTZMQMessage Agent::backend_handler(const zmq::Message& message)
                 const auto accountID = Identifier::Factory(
                     command.acceptpendingpayment(0).destinationaccount());
                 taskNymID =
-                    ot_.Client(session_to_client_index(command.session()))
+                    ot_
+                        .Client(session_to_client_index(
+                            static_cast<std::uint32_t>(command.session())))
                         .Storage()
                         .AccountOwner(accountID)
                         ->str();
@@ -312,10 +314,8 @@ OTZMQMessage Agent::backend_handler(const zmq::Message& message)
         }
     }
 
-    auto replymessage = zmq::Message::ReplyFactory(message);
-    const auto replydata =
-        opentxs::proto::ProtoAsData<opentxs::proto::RPCResponse>(response);
-    replymessage->AddFrame(replydata);
+    auto replymessage = zmq_.ReplyMessage(message);
+    replymessage->AddFrame(response);
 
     return replymessage;
 }
@@ -330,7 +330,7 @@ std::vector<OTZMQReplySocket> Agent::create_backend_sockets(
 
     for (const auto& endpoint : endpoints) {
         output.emplace_back(
-            zmq.ReplySocket(callback, zmq::Socket::Direction::Bind));
+            zmq.ReplySocket(callback, zmq::socket::Socket::Direction::Bind));
         auto& socket = *output.rbegin();
         started = socket->Start(endpoint);
 
@@ -403,8 +403,7 @@ void Agent::internal_handler(zmq::Message& message)
 void Agent::process_task_push(const zmq::Message& message)
 {
     const auto& payload = message.Body_at(0);
-    const auto data = Data::Factory(payload.data(), payload.size());
-    const auto push = proto::DataToProto<proto::RPCPush>(data);
+    const auto push = ot::proto::Factory<proto::RPCPush>(payload);
     const auto taskcomplete = push.taskcomplete();
     const auto taskID = taskcomplete.id();
     const auto success = taskcomplete.result();
@@ -474,7 +473,7 @@ void Agent::push_handler(const zmq::Message& message)
     }
 }
 
-void Agent::save_config(const Lock& lock)
+void Agent::save_config([[maybe_unused]] const Lock& lock)
 {
     fs::fstream settingsfile(settings_path_, std::ios::out);
     pt::write_ini(settings_path_, config_);
@@ -513,7 +512,7 @@ void Agent::send_task_push(
 
     OT_ASSERT(proto::Validate(message, VERBOSE))
 
-    push->AddFrame(proto::ProtoAsData(message));
+    push->AddFrame(message);
     frontend_->Send(push);
 }
 

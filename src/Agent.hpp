@@ -3,17 +3,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef AGENT_HPP_
-#define AGENT_HPP_
+#pragma once
 
-#include "opentxs/opentxs.hpp"
+#include <opentxs/opentxs.hpp>
 
 #include <atomic>
 #include <mutex>
 #include <string>
 
+namespace fs = boost::filesystem;
 namespace pt = boost::property_tree;
-namespace zmq = opentxs::network::zeromq;
+namespace ot = opentxs;
+namespace zmq = ot::network::zeromq;
 namespace zap = zmq::zap;
 
 namespace opentxs::agent
@@ -111,4 +112,3 @@ private:
     Agent& operator=(Agent&&) = delete;
 };
 }  // namespace opentxs::agent
-#endif  // AGENT_HPP_
